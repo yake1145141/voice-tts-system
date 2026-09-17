@@ -1,0 +1,49 @@
+name: release
+
+# 打 tag（v*）时自动生成开源发布包并挂到 Release 上，
+# 这样「仓库里的源码」和「Release 里的 zip」永远一致。
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号（例如 1.0.0）"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 生成发布包
+        id: pack
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          python deploy/make_release.py --zip --version "$VERSION" --out-dir release
+          echo "zip=release/voice-tts-system-v${VERSION}.zip" >> "$GITHUB_OUTPUT"
+          ls -la release/
+
+      - name: 上传到 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.pack.outputs.version }}
+          files: |
+            ${{ steps.pack.outputs.zip }}
+            release/voice-tts-system-v${{ steps.pack.outputs.version }}/client-package/astrbot-plugin-voice-reply-v${{ steps.pack.outputs.version }}.zip
+            release/voice-tts-system-v${{ steps.pack.outputs.version }}/client-package/android/tts-server-config.apk
+          generate_release_notes: true
