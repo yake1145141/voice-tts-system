@@ -401,6 +401,8 @@ python tools/tts_client.py \
 ```bash
 cd AstrBot/data/plugins
 git clone https://github.com/yake1145141/astrbot_plugin_voice_reply.git
+# 国内网络慢的话，改用加速地址：
+# git clone https://gh-proxy.cn/https://github.com/yake1145141/astrbot_plugin_voice_reply.git
 ```
 
 ```text

@@ -7,6 +7,23 @@
 > 📖 **不想看长文档？直接去文档站：[rvc-tts.top](https://rvc-tts.top/)**
 > —— 左侧目录导航，包含从硬件选型到部署、配置、排障的完整教程。
 
+## 🇨🇳 国内拉取加速
+
+GitHub 直连慢或者连不上？在地址前面加上 `https://gh-proxy.cn/` 就能加速：
+
+```bash
+# 直连（国外网络）
+git clone https://github.com/yake1145141/voice-tts-system.git
+
+# 国内加速（推荐国内用户用这条）
+git clone https://gh-proxy.cn/https://github.com/yake1145141/voice-tts-system.git
+```
+
+Release 里的发布包、安装脚本、以及文档里的其它 GitHub 链接，用同样的方法在地址前面加前缀即可。
+
+> 加速服务由 **[gh-proxy.cn](https://gh-proxy.cn)** 提供（备用入口 **[www.gh-proxy.cn](https://www.gh-proxy.cn/)**）。
+> 纯公益加速站，国内拉 GitHub 代码、Release、raw 文件都很快，推荐收藏。
+
 让 AstrBot 的 AI 回复**自动变成语音**：拦截 AI 文本 → 过滤括号/中括号里的动作与情绪描写
 → 调用 **tts-with-rvc**（Edge TTS `zh-CN-YunxiNeural` + 指定 RVC 模型）生成音频
 → 作为**语音消息**发送。
@@ -590,3 +607,34 @@ AstrBot 日志中 `[VoiceReply]` 的错误行；回复是否超过 `max_text_len
 **Q：能不能让每个用户用不同音色？**
 按需求本方案**固定单一模型**，模型名只在 `config.yaml` 中配置一处，请求参数里不含模型选择。
 如需多音色，可复制一份 `tts-server` 实例（不同端口 + 不同模型）再配合多个插件配置。
+
+---
+
+## 九、国内加速与致谢
+
+### 拉代码 / 下 Release 慢怎么办
+
+用 **[gh-proxy.cn](https://gh-proxy.cn)**（备用入口 **[www.gh-proxy.cn](https://www.gh-proxy.cn/)**）——
+在任意 GitHub 地址前面加个前缀就行：
+
+```bash
+# 直连
+git clone https://github.com/yake1145141/voice-tts-system.git
+
+# 国内加速
+git clone https://gh-proxy.cn/https://github.com/yake1145141/voice-tts-system.git
+```
+
+```bash
+# Release 附件同理，比如下载发布包：
+curl -L -O https://gh-proxy.cn/https://github.com/yake1145141/voice-tts-system/releases/download/v1.0.1/voice-tts-system-v1.0.1.zip
+```
+
+纯公益加速站，代码、Release、raw 文件都能过，国内实测很稳，推荐收藏。
+
+### 致谢
+
+* 语音合成与音色转换基于 [tts-with-rvc](https://github.com/Atm4x/tts-with-rvc)
+* 在线语音基于微软 Edge TTS 公开接口
+* 国内 GitHub 加速由 [gh-proxy.cn](https://gh-proxy.cn) / [www.gh-proxy.cn](https://www.gh-proxy.cn/) 提供
+* 本项目以 **MIT** 协议开源，详见 [LICENSE](LICENSE)

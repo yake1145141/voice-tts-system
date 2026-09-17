@@ -9,6 +9,21 @@
 
 > 核心原则：**能语音就语音，不能语音就文字**。任何一步失败都不会影响 AI 原本的文字回复。
 
+## 🇨🇳 国内拉取加速
+
+GitHub 直连慢或者连不上？在地址前面加上 `https://gh-proxy.cn/` 就能加速：
+
+```bash
+# 直连（国外网络）
+git clone https://github.com/yake1145141/astrbot_plugin_voice_reply.git
+
+# 国内加速（推荐国内用户用这条）
+git clone https://gh-proxy.cn/https://github.com/yake1145141/astrbot_plugin_voice_reply.git
+```
+
+> 加速服务由 **[gh-proxy.cn](https://gh-proxy.cn)** 提供（备用入口 **[www.gh-proxy.cn](https://www.gh-proxy.cn/)**）。
+> 纯公益加速站，国内拉 GitHub 代码、Release、raw 文件都很快，推荐收藏。
+
 这个插件只是**客户端**。它需要配合一个独立部署的语音服务端才能工作，
 服务端的搭建（含显卡要求、模型配置、网页控制台、Windows/Linux/Docker/Colab 各种部署方式）
 全部写在下面这个仓库里：
@@ -22,6 +37,13 @@
 > * 网页控制台（显卡状态、主机状态、在线试听）
 > * 命令行客户端、单文件调用库、安卓配置 App
 
+### 📖 图文教程（推荐先看这个）
+
+**<https://rvc-tts.top/>**
+
+在线文档站，左侧是完整目录树，从硬件选型一路讲到排障，
+比翻 README 舒服得多。服务端搭建的每一步都有截图和可复制的命令。
+
 ---
 
 ## 服务端搭建（必读）
@@ -34,6 +56,8 @@
 ```bash
 # Linux 一键安装（自动装 Python 3.12 + PyTorch cu121 + 注册 systemd 服务）
 git clone https://github.com/yake1145141/voice-tts-system.git
+# 国内网络慢的话，改用加速地址：
+# git clone https://gh-proxy.cn/https://github.com/yake1145141/voice-tts-system.git
 cd voice-tts-system
 sudo bash deploy/linux/install.sh \
      --model /path/你的模型.pth --index /path/你的模型.index \
@@ -44,6 +68,8 @@ sudo bash deploy/linux/install.sh \
 # Windows：解压整合包后双击「启动语音服务.bat」
 # 没有整合包就用仓库里的脚本自己构建：
 git clone https://github.com/yake1145141/voice-tts-system.git
+# 国内网络慢的话，改用加速地址：
+# git clone https://gh-proxy.cn/https://github.com/yake1145141/voice-tts-system.git
 cd voice-tts-system
 powershell -ExecutionPolicy Bypass -File deploy\windows\build-bundle.ps1 `
   -Model D:\models\MyVoice.pth -Index D:\models\MyVoice.index
@@ -82,6 +108,8 @@ powershell -ExecutionPolicy Bypass -File deploy\windows\build-bundle.ps1 `
    ```bash
    cd AstrBot/data/plugins
    git clone https://github.com/yake1145141/astrbot_plugin_voice_reply.git
+   # 国内网络慢的话，改用加速地址：
+   # git clone https://gh-proxy.cn/https://github.com/yake1145141/astrbot_plugin_voice_reply.git
    ```
 
    也可以用 AstrBot 插件市场 / 手动下载 zip 解压到同一位置。目录名保持
@@ -215,3 +243,29 @@ RVC 首次推理需要加载模型（10~60 秒），语音服务端已默认开�
 **Q：多个群同时说话会卡吗？**
 插件使用信号量限制并发（`max_concurrent`），语音服务端也有自己的队列与并发限制，
 超出部分会排队或直接降级为文字，不会阻塞 AstrBot 主事件循环。
+
+---
+
+## 国内加速与致谢
+
+### 拉代码 / 下 Release 慢怎么办
+
+用 **[gh-proxy.cn](https://gh-proxy.cn)**（备用入口 **[www.gh-proxy.cn](https://www.gh-proxy.cn/)**）——
+在任意 GitHub 地址前面加个前缀就行：
+
+```bash
+# 直连
+git clone https://github.com/yake1145141/astrbot_plugin_voice_reply.git
+
+# 国内加速
+git clone https://gh-proxy.cn/https://github.com/yake1145141/astrbot_plugin_voice_reply.git
+```
+
+同样适用于服务端仓库和它的 Release 附件。纯公益加速站，国内实测很稳，推荐收藏。
+
+### 致谢
+
+* AstrBot 插件框架：[AstrBot](https://github.com/AstrBotDevs/AstrBot)
+* 语音服务端：[voice-tts-system](https://github.com/yake1145141/voice-tts-system)
+* 国内 GitHub 加速：[gh-proxy.cn](https://gh-proxy.cn) / [www.gh-proxy.cn](https://www.gh-proxy.cn/)
+* 本项目以 MIT 协议开源，详见 [LICENSE](LICENSE)
