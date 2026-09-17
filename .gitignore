@@ -20,6 +20,10 @@ android-app/build/
 android-app/debug.keystore
 android-app/.gradle/
 dist/
+# 例外：安卓配置 App 的成品只有 24KB，放进仓库方便直接用，也是 Release 工作流需要的
+!android-app/dist/
+!android-app/dist/tts-server-config.apk
+android-app/dist/*.idsig
 # 发布包是构建产物，由 deploy/make_release.py 生成，不进版本库
 release/
 build/
