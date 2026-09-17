@@ -59,13 +59,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install "setuptools<81" fastapi uvicorn pydantic pyyaml
 
-      - name: 校验 config.yaml 能通过解析
+      - name: 校验 config.yaml 模板可用
         run: |
           cd tts-server
-          python -c "
-          import sys
-          sys.path.insert(0, '.')
+          python - <<'PY'
+          import pathlib, sys, tempfile
+          import yaml
+          sys.path.insert(0, ".")
           from config import AppConfig
-          cfg = AppConfig.load('config.yaml')
-          print('配置解析成功：', cfg.describe()['server'])
-          "
+
+          # 仓库里带的是模板配置：模型名是占位符 MyVoice.pth，CI 上当然没有这个文件。
+          # 所以先用 yaml 解析一遍确认语法，然后关掉 RVC 再做完整校验。
+          # （注意不能直接改 rvc.enabled —— config.yaml 里 chunk/webui 也有 enabled 字段）
+          src = pathlib.Path("config.yaml")
+          data = yaml.safe_load(src.read_text(encoding="utf-8"))
+          assert isinstance(data, dict), "config.yaml 顶层必须是键值对"
+          data["rvc"]["enabled"] = False
+          data["rvc"]["model"] = ""
+
+          tmp = pathlib.Path(tempfile.mkdtemp()) / "config.yaml"
+          tmp.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+          cfg = AppConfig.load(tmp)
+
+          server = cfg.describe()["server"]
+          print("config.yaml 模板校验通过")
+          print("  监听地址 :", server)
+          print("  语音源   :", cfg.source)
+          print("  分段字数 :", cfg.chunk.int("max_chars", 80))
+          print("  控制台   :", "有密码" if cfg.webui.str("password", "") else "无密码")
+          PY

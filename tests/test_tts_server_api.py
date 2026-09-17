@@ -507,33 +507,56 @@ def run_local_tts_source_tests(failures: list[str]) -> None:
             return TTSEngine(config, store), store
 
         # 1) 配置别名归一化
-        for alias, expected in [
+        # 注意：sapi 是 Windows 专属（Linux 上 config.validate 会直接拒绝），
+        # 而 local/offline 在 Windows 上归一化成 sapi、在其它系统上归一化成 espeak。
+        aliases = [
             ("edgetts", "edgetts"),
-            ("sapi", "sapi"),
-            ("local", "sapi"),
-            ("offline", "sapi"),
+            ("espeak", "espeak"),
+            ("espeak-ng", "espeak"),
             ("auto", "auto"),
             ("fallback", "auto"),
-        ]:
+        ]
+        if os.name == "nt":
+            aliases += [("sapi", "sapi"), ("local", "sapi"), ("offline", "sapi")]
+        else:
+            aliases += [("local", "espeak"), ("offline", "espeak")]
+        for alias, expected in aliases:
             engine, _ = build(alias)
             check(engine.tts_source() == expected, f"tts.source={alias} → {expected}", failures)
 
         # 2) 后端尝试顺序
         auto_engine, _ = build("auto")
         auto_engine._sapi_supported = lambda: True
+        auto_engine._find_espeak = lambda: None
         check(
             auto_engine._tts_backends() == ["edgetts", "sapi"],
             "auto 且本机有本地语音 → 先在线后本地",
             failures,
         )
         auto_engine._sapi_supported = lambda: False
+        auto_engine._find_espeak = lambda: None
         check(
             auto_engine._tts_backends() == ["edgetts"],
             "auto 且本机无本地语音（如 Linux）→ 只用在线",
             failures,
         )
-        sapi_engine, _ = build("sapi")
-        check(sapi_engine._tts_backends() == ["sapi"], "sapi → 只用本地语音", failures)
+        auto_engine._find_espeak = lambda: "/usr/bin/espeak-ng"
+        check(
+            auto_engine._tts_backends() == ["edgetts", "espeak"],
+            "auto 且本机装了 espeak-ng → 在线之后接 espeak",
+            failures,
+        )
+        if os.name == "nt":
+            sapi_engine, _ = build("sapi")
+            check(sapi_engine._tts_backends() == ["sapi"], "sapi → 只用本地语音", failures)
+        else:
+            espeak_engine, _ = build("espeak")
+            espeak_engine._find_espeak = lambda: "/usr/bin/espeak-ng"
+            check(
+                espeak_engine._tts_backends() == ["espeak"],
+                "espeak → 只用 espeak",
+                failures,
+            )
 
         # 3) auto 兜底：在线失败后自动改用本地，并且请求仍然成功
         engine, store = build("auto")
