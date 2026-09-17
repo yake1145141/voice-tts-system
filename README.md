@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.10%20~%203.12-blue.svg)](https://www.python.org/)
 
-> 📖 **不想看长文档？直接去文档站：[tts.axzt.top](https://tts.axzt.top/)**
+> 📖 **不想看长文档？直接去文档站：[rvc-tts.top](https://rvc-tts.top/)**
 > —— 左侧目录导航，包含从硬件选型到部署、配置、排障的完整教程。
 
 让 AstrBot 的 AI 回复**自动变成语音**：拦截 AI 文本 → 过滤括号/中括号里的动作与情绪描写
