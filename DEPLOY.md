@@ -384,10 +384,20 @@ python tools/tts_client.py \
 
 ## 九、客户端 · AstrBot 插件
 
+> 插件现在也有**独立仓库**，只想装插件的话直接克隆那个就行：
+> **https://github.com/yake1145141/astrbot_plugin_voice_reply**
+>
+> 本仓库里的 `astrbot_plugin_voice_reply/` 是同一份源码（打包整合包时要用到），两边内容保持一致。
+
 ### 9.1 安装
 
 把插件目录 `astrbot_plugin_voice_reply/` 整个拷贝到 AstrBot 的插件目录
 （发布包里对应的是 `client-package/astrbot-plugin-voice-reply-v1.0.0.zip`，解压即得同一份内容）：
+
+```bash
+cd AstrBot/data/plugins
+git clone https://github.com/yake1145141/astrbot_plugin_voice_reply.git
+```
 
 ```text
 AstrBot/

@@ -1,11 +1,56 @@
 # astrbot_plugin_voice_reply — AI 语音回复（tts-with-rvc）
 
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 把 AstrBot 的**文本回复**自动转换成**语音回复**：插件在「发送消息前」拦截 AI 的回复，
 过滤掉括号/中括号里的动作、情绪描写，再把剩下的**可朗读文本**发给你自己的
 [tts-with-rvc](https://github.com/Atm4x/tts-with-rvc) 语音服务，最后把文本消息段
 替换成语音消息段。
 
 > 核心原则：**能语音就语音，不能语音就文字**。任何一步失败都不会影响 AI 原本的文字回复。
+
+这个插件只是**客户端**。它需要配合一个独立部署的语音服务端才能工作，
+服务端的搭建（含显卡要求、模型配置、网页控制台、Windows/Linux/Docker/Colab 各种部署方式）
+全部写在下面这个仓库里：
+
+> ### 👉 服务端仓库：[yake1145141/voice-tts-system](https://github.com/yake1145141/voice-tts-system)
+>
+> 里面包含：
+> * 服务端源码（Edge TTS + RVC 的 HTTP 合成服务）
+> * **完整部署文档**：Linux 一键安装脚本 / Docker / Windows 整合包 / Google Colab / 安卓
+> * 硬件要求说明：**显存最低 2 GB**，P106-100 这类 Pascal 老卡也能用
+> * 网页控制台（显卡状态、主机状态、在线试听）
+> * 命令行客户端、单文件调用库、安卓配置 App
+
+---
+
+## 服务端搭建（必读）
+
+**这个插件不能单独使用**，必须先在工作电脑或服务器上跑起语音服务端，拿到它的地址和密钥。
+
+完整步骤请看 **[voice-tts-system 的部署文档](https://github.com/yake1145141/voice-tts-system/blob/main/DEPLOY.md)**，
+最省事的两种方式：
+
+```bash
+# Linux 一键安装（自动装 Python 3.12 + PyTorch cu121 + 注册 systemd 服务）
+git clone https://github.com/yake1145141/voice-tts-system.git
+cd voice-tts-system
+sudo bash deploy/linux/install.sh \
+     --model /path/你的模型.pth --index /path/你的模型.index \
+     --api-key your-secret-key
+```
+
+```powershell
+# Windows：解压整合包后双击「启动语音服务.bat」
+# 没有整合包就用仓库里的脚本自己构建：
+git clone https://github.com/yake1145141/voice-tts-system.git
+cd voice-tts-system
+powershell -ExecutionPolicy Bypass -File deploy\windows\build-bundle.ps1 `
+  -Model D:\models\MyVoice.pth -Index D:\models\MyVoice.index
+```
+
+装好后打开网页控制台 `http://<服务器IP>:8080/` 确认「服务状态 正常」，
+然后回到本页继续安装插件。
 
 ---
 
@@ -29,15 +74,18 @@
 
 ## 安装
 
-1. 先部署好**语音处理端**（见项目根目录 `README.md`），确认
-   `curl http://127.0.0.1:8080/api/health` 正常返回。
-2. 把 `astrbot_plugin_voice_reply` 整个目录放进 AstrBot 的插件目录：
+1. 先部署好**语音服务端**（步骤见上一节，仓库：
+   [yake1145141/voice-tts-system](https://github.com/yake1145141/voice-tts-system)），
+   确认 `curl http://127.0.0.1:8080/api/health` 正常返回。
+2. 把本仓库克隆进 AstrBot 的插件目录：
 
    ```bash
    cd AstrBot/data/plugins
-   git clone <你的仓库地址> astrbot_plugin_voice_reply
-   # 或者直接拷贝本目录
+   git clone https://github.com/yake1145141/astrbot_plugin_voice_reply.git
    ```
+
+   也可以用 AstrBot 插件市场 / 手动下载 zip 解压到同一位置。目录名保持
+   `astrbot_plugin_voice_reply`，里面应该直接就是 `main.py`、`metadata.yaml`。
 
 3. 打开 AstrBot WebUI → 插件管理 → 找到 `astrbot_plugin_voice_reply` → 点击 **启用 / 重载插件**。
 4. 在插件配置页填写 `TTS 服务地址`（默认 `http://127.0.0.1:8080`），

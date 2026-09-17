@@ -119,6 +119,7 @@ voice-tts-system/                       # 本仓库根目录
 │   └── README.md                       #    API 文档与部署说明
 │
 ├── astrbot_plugin_voice_reply/         # ② AstrBot 插件端
+│                                      #    （也有独立仓库：https://github.com/yake1145141/astrbot_plugin_voice_reply）
 │   ├── main.py                         #    拦截、过滤、请求、发送语音、降级
 │   ├── metadata.yaml                   #    插件元数据（官方规范）
 │   ├── _conf_schema.json               #    WebUI 可视化配置 Schema

@@ -4,7 +4,7 @@ desc: 拦截 AI 文本回复，自动过滤括号/中括号内容后调用 tts-w
 short_desc: 让 AI 用指定 RVC 音色说中文
 version: v1.0.0
 author: yake1145141
-repo: https://github.com/yake1145141/voice-tts-system
+repo: https://github.com/yake1145141/astrbot_plugin_voice_reply
 astrbot_version: ">=4.0.0"
 support_platforms:
   - aiocqhttp
