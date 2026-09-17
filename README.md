@@ -1,5 +1,9 @@
 # AstrBot AI 自动语音回复系统（tts-with-rvc）
 
+[![tests](https://github.com/yake1145141/voice-tts-system/actions/workflows/tests.yml/badge.svg)](https://github.com/yake1145141/voice-tts-system/actions/workflows/tests.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![python](https://img.shields.io/badge/python-3.10%20~%203.12-blue.svg)](https://www.python.org/)
+
 让 AstrBot 的 AI 回复**自动变成语音**：拦截 AI 文本 → 过滤括号/中括号里的动作与情绪描写
 → 调用 **tts-with-rvc**（Edge TTS `zh-CN-YunxiNeural` + 指定 RVC 模型）生成音频
 → 作为**语音消息**发送。
@@ -45,6 +49,13 @@
 
                     TTS 任意环节失败 ────────► 文字回复（原文不变）
 ```
+
+### 网页控制台
+
+服务端自带一个零依赖的网页控制台（根路径 `/`），能看到显卡状态、主机状态、在线试听、最近请求，
+并且支持密码登录。下图是在 Ubuntu 22.04 + P106-100 上的真实运行截图：
+
+![网页控制台](docs/webui-console.png)
 
 ---
 

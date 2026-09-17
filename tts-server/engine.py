@@ -241,7 +241,19 @@ class TTSEngine:
             if not self.config.rvc.bool("enabled", True):
                 # 调试模式：跳过 RVC，只做 TTS
                 if self.tts_source() not in ("sapi", "espeak"):
-                    import edge_tts  # noqa: F401  (提前验证依赖)
+                    # 提前验证在线语音依赖，但**不阻断启动**：
+                    # 少一个可选依赖就让整个引擎起不来太粗暴，而且会让
+                    # 「没装 edge-tts 的环境」无法跑单元测试。
+                    # 真到请求时再报明确错误即可。
+                    try:
+                        import edge_tts  # noqa: F401
+                    except ImportError as exc:  # pragma: no cover - 取决于环境
+                        logger.warning(
+                            "未安装 edge-tts（%s）：在线语音不可用。"
+                            "Windows 可把 tts.source 设为 sapi，"
+                            "Linux 可安装 espeak-ng 并设为 auto/espeak 走离线兜底。",
+                            exc,
+                        )
 
                 self._device = self._resolve_device()
                 self._is_half = False

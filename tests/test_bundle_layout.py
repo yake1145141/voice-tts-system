@@ -47,6 +47,28 @@ def build_fake_bundle(base: Path) -> Path:
     # 网页管理面板的静态资源
     if (SERVER_DIR / "static").is_dir():
         shutil.copytree(SERVER_DIR / "static", bundle / "app" / "static")
+
+    # 放一个 edge_tts 桩，让这个「打包布局」用例变成**完全离线、零依赖**的：
+    # 不需要真的装 edge-tts，也不会去连微软的在线语音服务。
+    # （真实合成能力的测试在 test_tts_server_api.py / test_chunking.py 里）
+    (bundle / "app" / "edge_tts.py").write_text(
+        '"""测试桩：不联网，直接写一段静音 wav 冒充合成结果。"""\n'
+        "import wave\n"
+        "\n"
+        "\n"
+        "class Communicate:\n"
+        "    def __init__(self, text='', voice='', rate='', volume='', **kwargs):\n"
+        "        self.text = text\n"
+        "\n"
+        "    async def save(self, path):\n"
+        "        with wave.open(str(path), 'wb') as handle:\n"
+        "            handle.setnchannels(1)\n"
+        "            handle.setsampwidth(2)\n"
+        "            handle.setframerate(16000)\n"
+        "            handle.writeframes(b'\\x00\\x00' * 4800)   # 0.3 秒静音\n",
+        encoding="utf-8",
+    )
+
     shutil.copy(ROOT / "tools" / "tts_client.py", bundle / "tools" / "tts_client.py")
 
     # 使用相对路径，模拟真实分发包里的 config.yaml（rvc 关掉，便于无模型自测）
