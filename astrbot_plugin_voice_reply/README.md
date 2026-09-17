@@ -21,7 +21,7 @@ git clone https://github.com/yake1145141/astrbot_plugin_voice_reply.git
 git clone https://gh-proxy.cn/https://github.com/yake1145141/astrbot_plugin_voice_reply.git
 ```
 
-> 加速服务由 **[gh-proxy.cn](https://gh-proxy.cn)** 提供（备用入口 **[www.gh-proxy.cn](https://www.gh-proxy.cn/)**）。
+> 加速服务由 **[gh-proxy.cn](https://gh-proxy.cn)** 提供，使用帮助见 **[www.gh-proxy.cn](https://www.gh-proxy.cn/)**。
 > 纯公益加速站，国内拉 GitHub 代码、Release、raw 文件都很快，推荐收藏。
 
 这个插件只是**客户端**。它需要配合一个独立部署的语音服务端才能工作，
@@ -250,7 +250,7 @@ RVC 首次推理需要加载模型（10~60 秒），语音服务端已默认开�
 
 ### 拉代码 / 下 Release 慢怎么办
 
-用 **[gh-proxy.cn](https://gh-proxy.cn)**（备用入口 **[www.gh-proxy.cn](https://www.gh-proxy.cn/)**）——
+用 **[gh-proxy.cn](https://gh-proxy.cn)**（使用帮助：**[www.gh-proxy.cn](https://www.gh-proxy.cn/)**）——
 在任意 GitHub 地址前面加个前缀就行：
 
 ```bash

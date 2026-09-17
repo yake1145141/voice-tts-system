@@ -21,7 +21,7 @@ git clone https://gh-proxy.cn/https://github.com/yake1145141/voice-tts-system.gi
 
 Release 里的发布包、安装脚本、以及文档里的其它 GitHub 链接，用同样的方法在地址前面加前缀即可。
 
-> 加速服务由 **[gh-proxy.cn](https://gh-proxy.cn)** 提供（备用入口 **[www.gh-proxy.cn](https://www.gh-proxy.cn/)**）。
+> 加速服务由 **[gh-proxy.cn](https://gh-proxy.cn)** 提供，使用帮助见 **[www.gh-proxy.cn](https://www.gh-proxy.cn/)**。
 > 纯公益加速站，国内拉 GitHub 代码、Release、raw 文件都很快，推荐收藏。
 
 让 AstrBot 的 AI 回复**自动变成语音**：拦截 AI 文本 → 过滤括号/中括号里的动作与情绪描写
@@ -614,7 +614,7 @@ AstrBot 日志中 `[VoiceReply]` 的错误行；回复是否超过 `max_text_len
 
 ### 拉代码 / 下 Release 慢怎么办
 
-用 **[gh-proxy.cn](https://gh-proxy.cn)**（备用入口 **[www.gh-proxy.cn](https://www.gh-proxy.cn/)**）——
+用 **[gh-proxy.cn](https://gh-proxy.cn)**（使用帮助：**[www.gh-proxy.cn](https://www.gh-proxy.cn/)**）——
 在任意 GitHub 地址前面加个前缀就行：
 
 ```bash
