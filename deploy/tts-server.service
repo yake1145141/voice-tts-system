@@ -1,0 +1,44 @@
+# TTS-with-RVC 语音处理端 systemd 服务
+#
+# 安装步骤：
+#   sudo cp deploy/tts-server.service /etc/systemd/system/
+#   # 按需修改下面的 User / WorkingDirectory / ExecStart
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now tts-server
+#   sudo journalctl -u tts-server -f
+#
+# 注意：RVC 推理需要 GPU，建议在 [Service] 中根据实际情况设置 CUDA_VISIBLE_DEVICES。
+
+[Unit]
+Description=TTS-with-RVC voice service (Edge TTS + RVC) for AstrBot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=astrbot
+Group=astrbot
+WorkingDirectory=/opt/voice-tts-system/tts-server
+
+# 直接使用项目内的虚拟环境解释器
+ExecStart=/opt/voice-tts-system/tts-server/.venv/bin/python /opt/voice-tts-system/tts-server/main.py
+
+# 可选：只让服务看到指定 GPU
+# Environment=CUDA_VISIBLE_DEVICES=0
+# 可选：用环境变量覆盖配置（无需修改 config.yaml）
+# Environment=TTS_SERVER_PORT=8080
+# Environment=TTS_SERVER_API_KEY=change-me
+# Environment=RVC_MODEL=MyVoice.pth
+
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tts-server
+
+# 推理过程需要较长时间的文件写入/读取权限
+RuntimeDirectory=tts-server
+StateDirectory=tts-server
+
+[Install]
+WantedBy=multi-user.target

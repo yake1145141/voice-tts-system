@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TTS 语音服务 · 控制台</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c232d; --line:#2a323d;
+    --fg:#e6edf3; --dim:#8b949e; --accent:#3fb950; --accent2:#58a6ff;
+    --warn:#d29922; --err:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:14px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accent2)}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+         padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line);
+         position:sticky;top:0;z-index:9}
+  header h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.3px}
+  .spacer{flex:1}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;
+        font-size:12px;border:1px solid var(--line);background:var(--panel2);color:var(--dim)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+  .ok .dot{background:var(--accent)} .ok{color:var(--accent)}
+  .bad .dot{background:var(--err)} .bad{color:var(--err)}
+  .warn .dot{background:var(--warn)} .warn{color:var(--warn)}
+  input,button,textarea,select{font:inherit;color:var(--fg);background:var(--panel2);
+        border:1px solid var(--line);border-radius:8px;padding:7px 10px;outline:none}
+  input:focus,textarea:focus{border-color:var(--accent2)}
+  button{cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--accent2)}
+  button.primary{background:#1f6feb;border-color:#1f6feb}
+  button.primary:hover{background:#2b7cf0}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  main{padding:18px 20px 40px;max-width:1200px;margin:0 auto}
+  .grid{display:grid;gap:14px}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+  .two{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card h2{margin:0 0 10px;font-size:12px;font-weight:600;color:var(--dim);
+           text-transform:uppercase;letter-spacing:.8px}
+  .big{font-size:22px;font-weight:600;margin:2px 0;word-break:break-all}
+  .sub{color:var(--dim);font-size:12px}
+  .k{color:var(--dim);font-size:12px;min-width:76px;display:inline-block}
+  .row{display:flex;justify-content:space-between;gap:10px;padding:3px 0;align-items:baseline}
+  .row span.v{font-variant-numeric:tabular-nums;text-align:right;word-break:break-all}
+  .bar{height:8px;background:#21262d;border-radius:999px;overflow:hidden;margin:6px 0 2px}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);
+         border-radius:999px;transition:width .4s}
+  .bar.hot>i{background:linear-gradient(90deg,#d29922,#f85149)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--dim);font-weight:500;font-size:11px;text-transform:uppercase}
+  td.wrap{white-space:normal;word-break:break-word;max-width:220px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}
+  .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  audio{width:100%;margin-top:10px}
+  .tag{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;
+       background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+  .err{color:var(--err)} .good{color:var(--accent)}
+  footer{color:var(--dim);font-size:12px;padding:0 20px 30px;max-width:1200px;margin:0 auto}
+  code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎙 TTS 语音服务 · 控制台</h1>
+  <span id="status" class="pill"><i class="dot"></i><span id="statusText">连接中…</span></span>
+  <span class="spacer"></span>
+  <input id="apiKey" type="password" placeholder="API Key" style="width:170px" autocomplete="off">
+  <button id="saveKey">保存 Key</button>
+  <button id="logout" style="display:none">退出登录</button>
+  <label class="pill" style="gap:8px"><input id="auto" type="checkbox" checked style="width:auto">自动刷新</label>
+</header>
+
+<main>
+  <div class="grid cards" id="topCards" style="margin-bottom:14px"></div>
+
+  <div class="grid two" style="margin-bottom:14px">
+    <div class="card">
+      <h2>显卡状态</h2>
+      <div id="gpuBox"><div class="sub">加载中…</div></div>
+    </div>
+    <div class="card">
+      <h2>主机状态</h2>
+      <div id="sysBox"><div class="sub">加载中…</div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h2>合成测试</h2>
+    <textarea id="text" rows="3" style="width:100%">你好，这是一条语音合成测试。</textarea>
+    <div class="flex" style="margin-top:10px">
+      <button class="primary" id="synth">合成并播放</button>
+      <button id="download" disabled>下载音频</button>
+      <select id="format" title="返回格式"><option value="wav">wav</option><option value="mp3">mp3</option></select>
+      <span class="sub" id="synthInfo"></span>
+    </div>
+    <audio id="player" controls style="display:none"></audio>
+  </div>
+
+  <div class="grid two">
+    <div class="card">
+      <h2>最近请求</h2>
+      <div id="recentBox"><div class="sub">暂无记录</div></div>
+    </div>
+    <div class="card">
+      <h2>服务信息</h2>
+      <div id="cfgBox"><div class="sub">加载中…</div></div>
+      <div class="flex" style="margin-top:12px">
+        <button id="cleanup">立即清理过期音频</button>
+        <span class="sub" id="cleanupInfo"></span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer id="footer"></footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const keyInput = $('apiKey');
+keyInput.value = localStorage.getItem('ttsApiKey') || '';
+
+$('saveKey').onclick = () => {
+  localStorage.setItem('ttsApiKey', keyInput.value.trim());
+  $('synthInfo').textContent = 'API Key 已保存到本机浏览器';
+  refresh();
+};
+
+function headers(extra) {
+  const h = Object.assign({}, extra || {});
+  const k = localStorage.getItem('ttsApiKey');
+  if (k) h['X-API-Key'] = k;
+  return h;
+}
+
+function fmt(v, digits) {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  return n.toFixed(digits === undefined ? 0 : digits);
+}
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function bar(pct, hot) {
+  const p = Math.max(0, Math.min(100, Number(pct) || 0));
+  return '<div class="bar' + (hot ? ' hot' : '') + '"><i style="width:' + p + '%"></i></div>';
+}
+
+function card(title, big, sub, cls) {
+  return '<div class="card"><h2>' + title + '</h2>' +
+         '<div class="big ' + (cls || '') + '">' + big + '</div>' +
+         '<div class="sub">' + sub + '</div></div>';
+}
+
+function baseName(p) {
+  if (!p) return '未配置';
+  return String(p).split(/[\\/]/).pop();
+}
+
+function setStatus(ok, text) {
+  $('status').className = 'pill ' + (ok ? 'ok' : 'bad');
+  $('statusText').textContent = text;
+}
+
+async function jget(url) {
+  const r = await fetch(url, {headers: headers(), cache: 'no-store'});
+  if (r.status === 401) {
+    // 会话过期（或没登录）：回登录页
+    window.location.href = '/login';
+    throw new Error('会话已过期，请重新登录');
+  }
+  if (!r.ok) throw new Error(url + ' -> HTTP ' + r.status);
+  return r.json();
+}
+
+let lastError = null;
+
+async function refresh() {
+  try {
+    const h = await jget('/api/health');
+    setStatus(h.status === 'ok', h.status === 'ok' ? '运行中' : '降级');
+    const e = h.engine, s = h.storage || {};
+    $('topCards').innerHTML =
+      card('服务状态', h.status === 'ok' ? '正常' : '降级',
+           '就绪 ' + (e.ready ? '是' : '否') + ' · 并发 ' + e.max_concurrent,
+           h.status === 'ok' ? 'good' : 'err') +
+      card('推理设备', (e.device || '—') + (e.is_half ? ' · fp16' : ' · fp32'),
+           '架构 ' + (e.gpu_detail || '—') + (e.device_fallback ? ' · 已降级 CPU' : '')) +
+      card('音色模型', esc(baseName(e.model)),
+           'RVC ' + (e.rvc_enabled ? '开启' : '关闭') + ' · f0 ' + (e.f0_method || '—')) +
+      card('语音源', esc(e.tts_source || '—'),
+           '发音人 ' + esc(e.speaker || '—') + (e.sapi_available ? ' · 本地可用' : '')) +
+      card('累计成功', fmt(e.stats ? e.stats.success : 0) + ' 次',
+           '失败 ' + fmt(e.stats ? e.stats.failed : 0) +
+           ' · 缓存命中 ' + fmt(e.stats ? e.stats.cache_hit : 0) +
+           ' · 队列 ' + fmt(e.queued)) +
+      card('音频占用', fmt(s.total_mb, 1) + ' MB',
+           fmt(s.files) + ' 个文件 · 保留 ' + fmt(s.expire_minutes) + ' 分钟');
+  } catch (err) {
+    lastError = err.message;
+    setStatus(false, '无法连接');
+  }
+
+  try {
+    const g = await jget('/api/gpu');
+    renderGpu(g.gpu);
+    renderSys(g.system);
+  } catch (err) {
+    $('gpuBox').innerHTML = '<div class="err">状态读取失败：' + esc(err.message) + '</div>';
+  }
+
+  try {
+    const st = await jget('/api/stats');
+    renderRecent(st.recent);
+    renderCfg(st);
+    $('logout').style.display = st.webui_protected ? '' : 'none';
+  } catch (err) { /* 面板辅助信息，失败不打扰 */ }
+
+  $('footer').innerHTML = '最后刷新 ' + new Date().toLocaleTimeString() +
+    ' · 接口：<code>/api/health</code> <code>/api/gpu</code> <code>/api/system</code> ' +
+    '<code>/api/stats</code> <code>POST /api/tts</code>' +
+    (lastError ? ' · <span class="err">' + esc(lastError) + '</span>' : '');
+}
+
+function torchBlock(t) {
+  if (!t) return '';
+  let s = '<div class="sub" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">';
+  if (!t.installed) {
+    return s + 'PyTorch：未安装' + (t.error ? '（' + esc(t.error) + '）' : '') + '</div>';
+  }
+  s += 'PyTorch ' + esc(t.version) + ' · CUDA ' + esc(t.cuda_version || '—') +
+       ' · 可用 ' + (t.cuda_available ? '是' : '否');
+  if (t.capability) s += ' · 算力 ' + esc(t.capability);
+  if (t.arch_list && t.arch_list.length) {
+    s += '<br>已编译架构：<span class="mono">' + esc(t.arch_list.join(' ')) + '</span>';
+  }
+  return s + '</div>';
+}
+
+function renderGpu(g) {
+  if (!g || !g.available) {
+    $('gpuBox').innerHTML = '<div class="sub">显卡不可用：' +
+      esc((g && g.reason) || '未知原因') + '</div>' + torchBlock(g && g.torch);
+    return;
+  }
+  let html = '';
+  g.gpus.forEach(function (d) {
+    const memPct = d.mem_total_mb ? (d.mem_used_mb / d.mem_total_mb * 100) : 0;
+    html += '<div class="row"><span class="v" style="font-weight:600">' + esc(d.name) +
+      '</span><span class="tag">GPU' + d.index + ' · 驱动 ' + esc(d.driver) + '</span></div>';
+    html += '<div class="row"><span class="k">利用率</span><span class="v">' +
+      fmt(d.util_gpu) + '%</span></div>' + bar(d.util_gpu, d.util_gpu > 85);
+    html += '<div class="row"><span class="k">显存</span><span class="v">' +
+      fmt(d.mem_used_mb) + ' / ' + fmt(d.mem_total_mb) + ' MB (' + fmt(memPct, 1) + '%)</span></div>' +
+      bar(memPct, memPct > 88);
+    html += '<div class="row"><span class="k">温度</span><span class="v">' + fmt(d.temp_c) + ' °C</span></div>';
+    html += '<div class="row"><span class="k">功耗</span><span class="v">' + fmt(d.power_w, 1) +
+      ' / ' + fmt(d.power_limit_w, 1) + ' W</span></div>';
+    html += '<div class="row"><span class="k">风扇</span><span class="v">' + fmt(d.fan_pct) + ' %</span></div>';
+    html += '<div class="row"><span class="k">频率</span><span class="v">SM ' + fmt(d.clock_sm_mhz) +
+      ' MHz · MEM ' + fmt(d.clock_mem_mhz) + ' MHz</span></div>';
+  });
+  if (g.processes && g.processes.length) {
+    html += '<table style="margin-top:10px"><tr><th>PID</th><th>进程</th><th>显存</th></tr>';
+    g.processes.forEach(function (p) {
+      html += '<tr><td class="mono">' + p.pid + '</td><td class="wrap">' + esc(p.name) +
+        '</td><td>' + fmt(p.used_memory_mb) + ' MB</td></tr>';
+    });
+    html += '</table>';
+  } else {
+    html += '<div class="sub" style="margin-top:8px">当前没有进程占用显卡</div>';
+  }
+  $('gpuBox').innerHTML = html + torchBlock(g.torch);
+}
+
+function renderSys(s) {
+  if (!s) { $('sysBox').innerHTML = '<div class="sub">无数据</div>'; return; }
+  let html = '';
+  if (s.memory) {
+    html += '<div class="row"><span class="k">内存</span><span class="v">' + fmt(s.memory.used_mb) +
+      ' / ' + fmt(s.memory.total_mb) + ' MB (' + fmt(s.memory.used_pct, 1) + '%)</span></div>' +
+      bar(s.memory.used_pct, s.memory.used_pct > 85);
+    if (s.memory.swap_total_mb) {
+      const sp = s.memory.swap_used_mb / s.memory.swap_total_mb * 100;
+      html += '<div class="row"><span class="k">交换分区</span><span class="v">' +
+        fmt(s.memory.swap_used_mb) + ' / ' + fmt(s.memory.swap_total_mb) + ' MB</span></div>' +
+        bar(sp, sp > 50);
+    }
+  }
+  if (s.disk) {
+    html += '<div class="row"><span class="k">磁盘</span><span class="v">' + fmt(s.disk.used_gb, 1) +
+      ' / ' + fmt(s.disk.total_gb, 1) + ' GB (' + fmt(s.disk.used_pct, 1) + '%)</span></div>' +
+      bar(s.disk.used_pct, s.disk.used_pct > 88);
+  }
+  if (s.load) {
+    html += '<div class="row"><span class="k">负载</span><span class="v">' + s.load['1m'] +
+      ' / ' + s.load['5m'] + ' / ' + s.load['15m'] + '</span></div>';
+  }
+  if (s.cpu_count) {
+    html += '<div class="row"><span class="k">CPU 核数</span><span class="v">' + s.cpu_count + '</span></div>';
+  }
+  if (s.uptime_seconds) {
+    const d = Math.floor(s.uptime_seconds / 86400);
+    const hh = Math.floor((s.uptime_seconds % 86400) / 3600);
+    html += '<div class="row"><span class="k">运行时长</span><span class="v">' +
+      d + ' 天 ' + hh + ' 小时</span></div>';
+  }
+  $('sysBox').innerHTML = html || '<div class="sub">无数据</div>';
+}
+
+function renderRecent(rows) {
+  if (!rows || !rows.length) {
+    $('recentBox').innerHTML = '<div class="sub">暂无记录（面板只统计本次启动后的请求）</div>';
+    return;
+  }
+  let html = '<table><tr><th>时间</th><th>接口</th><th>状态</th><th>耗时</th><th>来源</th></tr>';
+  rows.slice(0, 20).forEach(function (r) {
+    const ok = r.status >= 200 && r.status < 300;
+    html += '<tr><td class="mono">' + esc(r.time) + '</td><td class="mono">' + esc(r.path) +
+      '</td><td class="' + (ok ? 'good' : 'err') + '">' + r.status + '</td><td>' + r.duration +
+      's</td><td class="mono">' + esc(r.client) + '</td></tr>';
+  });
+  $('recentBox').innerHTML = html + '</table>';
+}
+
+function renderCfg(st) {
+  const e = st.engine, s = st.storage || {};
+  let html = '';
+  html += '<div class="row"><span class="k">模型</span><span class="v mono">' + esc(e.model || '—') + '</span></div>';
+  html += '<div class="row"><span class="k">f0 算法</span><span class="v">' + esc(e.f0_method || '—') + '</span></div>';
+  html += '<div class="row"><span class="k">变调</span><span class="v">' + fmt(e.pitch) + ' 半音</span></div>';
+  html += '<div class="row"><span class="k">超时</span><span class="v">' + fmt(e.timeout) + ' 秒</span></div>';
+  html += '<div class="row"><span class="k">音频目录</span><span class="v mono">' +
+          esc(st.output_dir || s.dir || '—') + '</span></div>';
+  html += '<div class="row"><span class="k">最近错误</span><span class="v ' +
+          (e.last_error ? 'err' : '') + '">' + esc(e.last_error || '无') + '</span></div>';
+  $('cfgBox').innerHTML = html;
+}
+
+let blobUrl = null;
+$('synth').onclick = async function () {
+  const text = $('text').value.trim();
+  if (!text) { $('synthInfo').textContent = '请先输入文字'; return; }
+  const btn = $('synth');
+  btn.disabled = true;
+  $('synthInfo').textContent = '合成中…（首次请求要加载模型，可能十几秒）';
+  try {
+    const r = await fetch('/api/tts', {
+      method: 'POST',
+      headers: headers({'Content-Type': 'application/json'}),
+      body: JSON.stringify({text: text, format: $('format').value}),
+    });
+    if (!r.ok) {
+      let msg = 'HTTP ' + r.status;
+      try {
+        const j = await r.json();
+        msg += ' · ' + (j.detail ? (j.detail.code || JSON.stringify(j.detail)) : JSON.stringify(j));
+      } catch (e) { /* 非 JSON 错误体 */ }
+      throw new Error(msg);
+    }
+    const j = await r.json();
+    const audioUrl = j.audio_url + (j.audio_url.indexOf('?') >= 0 ? '&' : '?') +
+                     'key=' + encodeURIComponent(localStorage.getItem('ttsApiKey') || '');
+    const player = $('player');
+    player.src = audioUrl;
+    player.style.display = 'block';
+    player.play().catch(function () {});
+    $('synthInfo').innerHTML = '完成 · ' + esc(j.filename) + ' · ' + (j.size_bytes / 1024).toFixed(1) +
+      ' KB' + (j.cached ? ' · <span class="tag">缓存命中</span>' : '');
+    const dl = $('download');
+    dl.disabled = false;
+    dl.onclick = function () { window.open(audioUrl, '_blank'); };
+  } catch (err) {
+    $('synthInfo').innerHTML = '<span class="err">失败：' + esc(err.message) + '</span>';
+  } finally {
+    btn.disabled = false;
+    refresh();
+  }
+};
+
+$('cleanup').onclick = async function () {
+  $('cleanupInfo').textContent = '清理中…';
+  try {
+    const r = await fetch('/api/cleanup', {method: 'POST', headers: headers()});
+    const j = await r.json();
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' · ' + JSON.stringify(j.detail || j));
+    const c = j.cleaned || {};
+    $('cleanupInfo').textContent = '已清理 ' + (c.removed_audio || 0) + ' 个音频 / ' +
+      (c.removed_work || 0) + ' 个临时文件';
+  } catch (err) {
+    $('cleanupInfo').innerHTML = '<span class="err">' + esc(err.message) + '</span>';
+  }
+};
+
+setInterval(function () { if ($('auto').checked) refresh(); }, 3000);
+$('logout').onclick = async function () {
+  try { await fetch('/api/logout', {method: 'POST'}); } catch (e) { /* 忽略 */ }
+  window.location.href = '/login';
+};
+refresh();
+</script>
+</body>
+</html>

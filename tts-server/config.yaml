@@ -1,0 +1,121 @@
+# ===========================================================================
+#  AstrBot AI 自动语音回复系统 —— 语音处理端（tts-with-rvc HTTP 服务）配置
+# ===========================================================================
+#  说明：
+#  1. 所有相对路径都相对于「本配置文件所在目录」解析。
+#  2. 任何配置项都可以用环境变量覆盖，便于用 systemd / docker 部署：
+#       TTS_SERVER_CONFIG            指定配置文件路径
+#       TTS_SERVER_HOST / TTS_SERVER_PORT / TTS_SERVER_API_KEY
+#       TTS_SERVER_PUBLIC_BASE_URL
+#       RVC_MODEL / RVC_MODEL_DIR / RVC_DEVICE / RVC_ENABLED
+#       TTS_SERVER_OUTPUT_DIR / TTS_SERVER_LOG_LEVEL
+# ===========================================================================
+
+server:
+  # 监听地址与端口。0.0.0.0 表示监听所有网卡。
+  host: "0.0.0.0"
+  port: 8080
+  # 生成 audio_url 用到的对外基础地址，例如 "http://192.168.1.10:8080"。
+  # 留空则根据请求的 Host 头自动推断，一般无需填写。
+  public_base_url: ""
+  log_level: "INFO"
+
+security:
+  # 填写后，AstrBot 插件（以及其他调用方）必须在请求头里带上该 Key：
+  #   Authorization: Bearer <api_key>
+  # 或
+  #   X-API-Key: <api_key>
+  # 留空表示不鉴权（仅建议在完全可信的内网环境使用）。
+  api_key: ""
+  # 是否对「音频文件下载」接口（GET /audio/<file>）也启用鉴权。
+  # 注意：如果插件采用 url 模式，把音频链接直接交给 QQ/Telegram 去拉取，
+  # 那么这些平台无法携带 API Key，此时必须保持 false（默认）。
+  # 采用 file 模式（插件自己下载音频再发送）时可以安全地设为 true。
+  protect_audio: false
+
+# ---------------------------------------------------------------------------
+# TTS 配置（不开放给请求方选择）
+# ---------------------------------------------------------------------------
+tts:
+  # edgetts = 微软在线语音（音色最自然，需要联网，偶发抽风）
+  # sapi    = Windows 自带离线语音（完全离线、稳定，音色偏机械，经 RVC 转换后可用）
+  # espeak  = espeak-ng 离线语音（Linux/macOS；需要 apt install espeak-ng）
+  # local   = Windows 上是 sapi，其他系统上是 espeak
+  # auto    = 先用 edgetts，失败自动退回本地离线（推荐，兼顾音质与稳定）
+  source: "auto"
+  speaker: "zh-CN-YunxiNeural"  # 固定发音人
+  pitch: 5                   # 音调：RVC 变调半音数（transpose），传给 tts-with-rvc 的 pitch
+  edge_pitch_hz: 0           # Edge TTS 原生音高（Hz），非必要不要修改
+  rate: 0                    # 语速（百分比，可负）
+  volume: 0                  # 音量（百分比，可负）
+  retries: 3                 # 在线语音偶发失败（空音频/断连/超时）时的重试次数
+  sapi_voice: ""             # 本地语音名称，留空 = 自动挑一个中文语音（如 Microsoft Huihui Desktop）
+  sapi_rate: 0               # 本地语音语速：-10 ~ 10
+  sapi_timeout: 60           # 本地语音合成超时（秒）
+  espeak_voice: "cmn"        # espeak-ng 音色：cmn = 普通话
+  espeak_speed: 180          # espeak-ng 语速（词/分钟）
+  espeak_timeout: 60
+
+# ---------------------------------------------------------------------------
+# 长文本自动分段
+#   RVC 推理的显存峰值只与【单段长度】相关（实测约 550MB 常驻 + 15MB/字），
+#   与文本总长度无关。切成多段分别合成再无缝拼接，2GB 显存的小卡也能处理长文本。
+#   2GB 显存建议 ≤60；4GB 建议 ≤120；6GB 以上可以 200。
+# ---------------------------------------------------------------------------
+chunk:
+  enabled: true
+  max_chars: 80              # 单段最大字数（0 = 不分段，沿用旧行为）
+  min_chars: 10              # 相邻过短片段合并阈值
+
+# ---------------------------------------------------------------------------
+# 网页控制台（浏览器打开 http://<服务器IP>:<端口>/）
+#   带显卡状态、主机状态、在线试听、最近请求；password 留空则不需要登录。
+# ---------------------------------------------------------------------------
+webui:
+  enabled: true
+  username: "admin"
+  password: ""
+  session_hours: 12
+
+# ---------------------------------------------------------------------------
+# RVC 配置（固定模型，不允许每次请求选择；模型名集中在此配置）
+# ---------------------------------------------------------------------------
+rvc:
+  enabled: true              # 仅调试用：false 时跳过 RVC，直接输出 Edge TTS 音频
+  # 指定 RVC 模型：可以是绝对路径，也可以是 rvc.model_dir 下的文件名
+  # 例如 "MyVoice.pth" 或 "/home/user/tts/models/MyVoice.pth"
+  model: "MyVoice.pth"
+  model_dir: "./models"      # 当 model 只写文件名时，在此目录下查找
+  index: ""                  # 可选的 .index 文件（同样支持绝对路径或相对 model_dir）
+  index_rate: 0.75
+  f0_method: "rmvpe"         # rmvpe / fcpe / pm / harvest / dio / crepe
+  device: "auto"             # auto / cuda:0 / cpu
+  # device=auto 时的显存门槛（MB）：低于它就自动用 CPU，避免一上来就 OOM
+  # 2GB 显存的卡（最低要求）请填 1800；4GB 填 3500；6GB 及以上可以填 5000
+  min_vram_mb: 1800
+  # 运行中显存不足时，是否自动降级到 CPU 重试（推荐开）
+  allow_cpu_fallback: true
+  is_half: true              # 半精度推理（CPU 上会自动关闭）
+  filter_radius: 3
+  resample_sr: 0
+  rms_mix_rate: 0.5
+  protect: 0.33
+  preload: true              # 启动时做一次预热推理，提前加载模型并暴露配置错误
+
+storage:
+  output_dir: "./output"     # 生成音频的存放目录
+  # 音频只保留 10 分钟，超过 10 分钟由后台任务自动删除（单位：分钟）
+  expire_minutes: 10
+  # 后台清理任务间隔（分钟）。要保证"到点即删"，该值应明显小于 expire_minutes
+  cleanup_interval_minutes: 2
+  cache_by_text: true        # 10 分钟内的相同文本直接复用已有音频，避免重复推理
+  max_text_length: 2000      # 服务端单次请求最大文本长度（第二道保险）
+
+queue:
+  max_concurrent: 2          # 同时进行的 TTS 任务数（RVC 推理由底层库串行化）
+  max_queue_size: 32         # 排队上限，超过则直接返回 503，避免无限堆积
+  timeout: 120               # 单个任务超时时间（秒）
+
+audio:
+  output_format: "wav"       # wav（AstrBot 语音消息推荐）或 mp3（体积更小，需要 ffmpeg）
+  mp3_bitrate: "64k"

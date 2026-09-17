@@ -1,0 +1,11 @@
+**/.git
+**/__pycache__
+**/*.pyc
+dist/
+build/
+.build-cache/
+.build-exe-venv/
+client_output/
+tts-server/output/*
+!tts-server/output/.gitkeep
+logs/

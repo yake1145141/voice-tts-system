@@ -1,0 +1,57 @@
+# 语音处理端配置（Ubuntu / P106-100）—— 改完保存，重启服务生效
+#   systemctl restart tts-server
+
+server:
+  host: "0.0.0.0"          # 0.0.0.0 = 局域网可访问
+  port: 50051              # 网页控制台与全部 API 都走这个端口
+  log_level: "INFO"
+
+security:
+  api_key: "change-me"     # 换成你自己的密钥；AstrBot 插件里填同一个值；留空则不校验
+  protect_audio: false     # true 时 /audio/xxx 也要带 key
+
+# ---------------------------------------------------------------------------
+# 网页控制台（/ 根路径）
+# ---------------------------------------------------------------------------
+webui:
+  enabled: true
+  username: "admin"
+  password: "Tts@50051"    # 留空 = 不校验密码；改完 systemctl restart tts-server
+  session_hours: 12        # 登录状态保持多久
+
+rvc:
+  enabled: true
+  model: "Shaonian.pth"
+  model_dir: "./models"
+  index: "Shaonian.index"
+  f0_method: "rmvpe"       # 音质最好；想更快可改 pm / dio
+  device: "auto"           # auto = 有 GPU 用 GPU，否则 CPU
+  min_vram_mb: 2500        # 显存低于该值直接用 CPU（P106-100 有 6GB，够用）
+  allow_cpu_fallback: true
+  is_half: true            # Pascal 卡支持 fp16（P106-100 实测可用）
+  preload: true            # 启动即加载模型，第一句不用等
+
+tts:
+  # edgetts = 微软在线语音（音色自然，需联网；Linux 上没有 SAPI，auto 等价于 edgetts）
+  source: "edgetts"
+  speaker: "zh-CN-YunxiNeural"
+  pitch: 5                 # RVC 变调半音数
+  edge_pitch_hz: 0         # Edge TTS 原生音高（Hz），非必要不要改
+  rate: 0                  # 语速百分比
+  volume: 0                # 音量百分比
+  retries: 3               # 在线语音偶发失败时的重试次数
+
+storage:
+  output_dir: "./output"
+  expire_minutes: 10       # 生成的音频 10 分钟后自动删除
+  cleanup_interval_minutes: 2
+  cache_by_text: true
+  max_text_length: 2000
+
+queue:
+  max_concurrent: 1        # RVC 推理本身串行，保持 1 最稳
+  max_queue_size: 16
+  timeout: 180
+
+audio:
+  output_format: "wav"

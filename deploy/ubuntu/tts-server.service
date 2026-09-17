@@ -1,0 +1,43 @@
+# TTS-with-RVC 语音处理端 —— Ubuntu systemd 服务单元
+#
+#   cp deploy/ubuntu/tts-server.service /etc/systemd/system/tts-server.service
+#   systemctl daemon-reload
+#   systemctl enable --now tts-server
+#   systemctl status tts-server
+#   journalctl -u tts-server -f
+
+[Unit]
+Description=TTS-with-RVC voice service (Edge TTS + RVC) for AstrBot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/tts-server
+
+# 说明：
+#   main.py 启动时会自动把工作目录切到 /opt/tts-server（hubert_base.pt 所在处），
+#   并把 <bundle>/bin 加进 PATH，所以这里不必额外设置。
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONIOENCODING=utf-8
+# 本地已有 hubert_base.pt / rmvpe.pt 时禁止 huggingface_hub 联网检查，加快启动
+Environment=HF_HUB_OFFLINE=1
+Environment=HF_HUB_DISABLE_TELEMETRY=1
+
+ExecStart=/opt/tts-server/venv/bin/python /opt/tts-server/app/main.py --config /opt/tts-server/config.yaml
+
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tts-server
+
+# RVC 推理 + 音频文件句柄，给宽一点
+LimitNOFILE=65535
+# 内存只有 3GB 的机器上，避免 OOM killer 优先干掉服务
+OOMScoreAdjust=-200
+
+[Install]
+WantedBy=multi-user.target

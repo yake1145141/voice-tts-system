@@ -1,0 +1,88 @@
+{
+  "tts_server": {
+    "description": "语音处理端（tts-with-rvc 服务）连接配置",
+    "type": "object",
+    "hint": "插件会把过滤后的文本发送到该 HTTP 服务，取回音频后作为语音消息发送。",
+    "items": {
+      "url": {
+        "description": "TTS 服务地址",
+        "type": "string",
+        "default": "http://127.0.0.1:8080",
+        "hint": "例如 http://127.0.0.1:8080。若 AstrBot 与语音服务不在同一台机器，请填写可访问的地址。"
+      },
+      "api_key": {
+        "description": "TTS 服务 API Key",
+        "type": "string",
+        "default": "",
+        "hint": "与语音处理端 config.yaml 中 security.api_key 保持一致；留空表示服务端未开启鉴权。"
+      },
+      "delivery": {
+        "description": "音频交付方式",
+        "type": "string",
+        "default": "auto",
+        "options": ["auto", "file", "url"],
+        "hint": "file=插件下载音频后作为本地文件发送（推荐）；url=直接把音频链接交给消息平台拉取（要求平台能访问该地址）；auto=先 file，失败再 url。"
+      }
+    }
+  },
+  "voice": {
+    "description": "语音回复行为配置",
+    "type": "object",
+    "items": {
+      "enabled": {
+        "description": "是否启用语音回复",
+        "type": "bool",
+        "default": true,
+        "hint": "关闭后插件不拦截消息，全部按文字发送。也可由管理员用 /voice on|off 临时切换。"
+      },
+      "max_text_length": {
+        "description": "最大语音文本长度",
+        "type": "int",
+        "default": 300,
+        "hint": "过滤括号后超过该长度的回复不转语音，直接发送文字，避免超长语音。"
+      },
+      "timeout": {
+        "description": "TTS 请求超时（秒）",
+        "type": "int",
+        "default": 60,
+        "hint": "超时后自动降级为文字回复，不会丢失 AI 回复。"
+      },
+      "max_concurrent": {
+        "description": "最大并发 TTS 请求数",
+        "type": "int",
+        "default": 2,
+        "hint": "多个会话同时触发时，超出并发的请求会在插件内排队，避免拖垮语音服务。"
+      },
+      "keep_text": {
+        "description": "同时发送原始文字",
+        "type": "bool",
+        "default": false,
+        "hint": "开启后语音消息后面会再发一遍原文（语音+文字双发）。"
+      },
+      "only_llm_result": {
+        "description": "只处理大模型回复",
+        "type": "bool",
+        "default": false,
+        "hint": "开启后仅把 LLM/Agent 的回复转成语音，其它插件产生的文本回复保持文字。"
+      },
+      "cleanup_markdown": {
+        "description": "移除 Markdown 装饰符号",
+        "type": "bool",
+        "default": true,
+        "hint": "去掉 **、`、#、列表符号等朗读时会读出奇怪符号的标记。"
+      },
+      "cache_expire_minutes": {
+        "description": "本地音频缓存过期时间（分钟）",
+        "type": "int",
+        "default": 60,
+        "hint": "插件下载的音频文件会在该时间后被自动清理，避免占用磁盘。"
+      },
+      "skip_platforms": {
+        "description": "不支持语音消息的平台",
+        "type": "list",
+        "default": ["qq_official", "qq_official_webhook", "dingtalk", "lark"],
+        "hint": "这些平台的适配器不支持 Record（语音）消息段，插件会直接发送文字。"
+      }
+    }
+  }
+}

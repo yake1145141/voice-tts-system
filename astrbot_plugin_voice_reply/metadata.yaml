@@ -1,0 +1,12 @@
+name: astrbot_plugin_voice_reply # 插件唯一识别名
+display_name: AI 语音回复（TTS + RVC） # 展示名（AstrBot >= v4.5.0）
+desc: 拦截 AI 文本回复，自动过滤括号/中括号内容后调用 tts-with-rvc 合成语音并发送；失败自动降级为文字回复。
+short_desc: 让 AI 用指定 RVC 音色说中文
+version: v1.0.0
+author: yake1145141
+repo: https://github.com/yake1145141/voice-tts-system
+astrbot_version: ">=4.0.0"
+support_platforms:
+  - aiocqhttp
+  - telegram
+  - wecom

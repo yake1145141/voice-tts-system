@@ -1,0 +1,43 @@
+# =============================================================================
+#  在 Docker 里构建 Linux amd64 产物（Windows / macOS 用户用这个）
+#
+#  构建镜像：
+#     docker build --platform linux/amd64 -f deploy/Dockerfile.build -t tts-builder .
+#
+#  构建「免安装便携包」（推荐）：
+#     docker run --rm -v "%cd%/dist:/dist" tts-builder
+#  构建 CUDA 变体：
+#     docker run --rm -v "%cd%/dist:/dist" tts-builder bash deploy/build_linux_bundle.sh --cuda 12.8 --out-dir /dist
+#  构建 PyInstaller 可执行文件：
+#     docker run --rm -v "%cd%/dist:/dist" tts-builder bash deploy/build_linux_executable.sh --cpu --out-dir /dist
+#
+#  带上你的模型与权重（先放到项目的 models/ 和 assets/ 目录，构建时会复制进镜像）：
+#     docker run --rm -v "%cd%/dist:/dist" tts-builder \
+#       bash deploy/build_linux_bundle.sh --cpu --out-dir /dist \
+#            --model /src/models/YourVoice.pth --index /src/models/YourVoice.index --assets /src/assets
+#
+#  说明：镜像里装了 build-essential，因为 tts-with-rvc 依赖的 pyworld 在 Linux 上没有
+#        预编译 wheel，需要现场编译。
+# =============================================================================
+
+FROM python:3.12-slim-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        xz-utils \
+        ca-certificates \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+COPY . /src
+
+# 默认：构建 CPU 版免安装便携包，产物落在挂载的 /dist
+CMD ["bash", "deploy/build_linux_bundle.sh", "--cpu", "--out-dir", "/dist"]

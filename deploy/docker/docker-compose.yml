@@ -1,0 +1,56 @@
+# =============================================================================
+#  voice-tts-system · docker compose
+#
+#  1) 装 NVIDIA Container Toolkit（一次性）
+#     https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+#
+#  2) 准备目录与文件（在本文件所在目录执行）：
+#       mkdir -p models output
+#       cp /path/MyVoice.pth /path/MyVoice.index models/
+#       cp ../../server/config.yaml ./config.yaml     # 然后按需修改
+#       # 把 config.yaml 里的 rvc.model_dir 保持 "./models"、storage.output_dir 保持 "./output"
+#
+#  3) 启动：
+#       docker compose up -d
+#       docker compose logs -f
+#
+#  想换目录就设置环境变量：TTS_MODEL_DIR / TTS_OUTPUT_DIR / TTS_CONFIG
+# =============================================================================
+
+services:
+  tts-server:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: voice-tts-system:1.0.0
+    container_name: tts-server
+    restart: unless-stopped
+    ports:
+      - "${TTS_PORT:-8080}:8080"
+    environment:
+      # 让容器能看见宿主机的 GPU
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      # 本地模型权重已挂载时，禁止联网检查 HuggingFace（否则启动会卡几分钟）
+      HF_HUB_OFFLINE: "1"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      # 也可以用环境变量覆盖配置，无需改 config.yaml
+      # TTS_SERVER_API_KEY: your-secret-key
+      # RVC_DEVICE: cuda:0
+    volumes:
+      - "${TTS_CONFIG:-./config.yaml}:/app/config.yaml:ro"
+      - "${TTS_MODEL_DIR:-./models}:/app/models"
+      - "${TTS_OUTPUT_DIR:-./output}:/app/output"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/api/health',timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 6s
+      start_period: 60s
+      retries: 3

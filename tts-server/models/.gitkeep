@@ -1,0 +1,2 @@
+# 把 RVC 模型（.pth）与索引（.index）放在这个目录，并在 config.yaml 的 rvc.model 中填写文件名。
+# 例如： models/MyVoice.pth  ->  rvc.model: "MyVoice.pth"

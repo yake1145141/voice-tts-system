@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# 运行产物
+tts-server/output/*
+!tts-server/output/.gitkeep
+# 模型只保留占位文件，实际的 .pth / .index 不要提交
+tts-server/models/*
+!tts-server/models/.gitkeep
+*.pth
+*.index
+hubert_base.pt
+rmvpe.pt
+client_output/
+android-app/build/
+android-app/debug.keystore
+android-app/.gradle/
+dist/
+# 发布包是构建产物，由 deploy/make_release.py 生成，不进版本库
+release/
+build/
+.build-cache/
+.build-exe-venv/
+logs/
+data/
+.webui_secret
+*.log
+
+# 本地配置（如需忽略带密钥的配置，取消下一行注释）
+# tts-server/config.yaml
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

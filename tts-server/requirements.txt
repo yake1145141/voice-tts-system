@@ -1,0 +1,15 @@
+# ---- 语音处理端依赖 ----
+# 1) 先安装 PyTorch（CUDA/MPS 版本按 https://pytorch.org/get-started/locally/ 选择），
+#    例如: pip3 install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
+# 2) 再执行: pip3 install -r requirements.txt
+
+# 核心：Edge TTS + RVC 一体化的语音合成/音色转换
+tts-with-rvc>=0.1.9
+
+# HTTP 服务
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.5
+
+# 配置
+PyYAML>=6.0

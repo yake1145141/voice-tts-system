@@ -1,0 +1,38 @@
+MIT License
+
+Copyright (c) 2026 yake1145141
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+第三方组件声明（本项目的运行依赖，各自遵循其原始许可证）：
+
+* tts-with-rvc      — Edge TTS + RVC 一体化推理库
+* fairseq / fairseq-fixed — MIT
+* PyTorch / torchaudio    — BSD-3-Clause
+* FastAPI / uvicorn / pydantic / Starlette — MIT / BSD
+* librosa / soundfile / resampy / audioread — ISC / BSD / MIT
+* faiss-cpu         — MIT
+* praat-parselmouth — GPL-3.0（注意：如二次分发需遵守 GPL）
+* edge-tts          — LGPL-3.0
+* espeak-ng         — GPL-3.0（仅在启用离线兜底时使用）
+* FFmpeg            — LGPL/GPL（仅调用其可执行文件）
+
+发布前请再次确认各依赖的许可证与你计划使用的开源协议是否兼容。
