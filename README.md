@@ -468,7 +468,7 @@ sudo bash deploy/linux/install-systemd.sh /opt/tts-server 50051    # 或手动�
 跑完 `systemctl status tts-server`、`journalctl -u tts-server -f` 就都正常了。
 
 > 为什么必须要 `Restart=always`：`edge-tts` 卡在网络等待上时线程无法从 Python 层面中断，
-> 服务端会选择主动退出、让 systemd 秒级拉起（详见 [CHANGELOG](CHANGELOG.md) v1.0.1）。
+> 服务端会选择主动退出、让 systemd 秒级拉起（详见 [CHANGELOG](CHANGELOG.md) v1.0.2）。
 
 ---
 

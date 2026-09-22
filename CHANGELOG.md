@@ -2,7 +2,7 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## v1.0.1 — 2026-09-22
+## v1.0.2 — 2026-09-22
 
 修复「服务端一直生成失败（控制台全是 504）」与「`Unit tts-server.service could not be found`」。
 
@@ -37,8 +37,21 @@ queue:
 
 ### 运维提醒
 
-自愈（主动退出 + 自动拉起）依赖 systemd 托管。用 `nohup` / `.bat` 手工起的进程，
-卡死后不会自动重启，请改用 systemd（Linux）或 `后台启动.bat` + 任务计划（Windows）。
+自愈（主动退出 + 自动拉起）依赖外部守护。Linux 请用 systemd（`install.sh` /
+`install-systemd.sh` 装的都带 `Restart=always`）；Windows 用新增的 `守护启动.bat`。
+用 `nohup` / 双击 `启动语音服务.bat` 这种一次性启动方式，进程退出后没人拉起来。
+
+## v1.0.1 — 2026-09-18
+
+### 修复
+
+- 引擎在 `rvc.enabled: false` 时会因为缺少 `edge-tts` 直接初始化失败
+  （整个服务 `ready=false`）。现在改为记录警告继续启动 ——
+  这是个可选依赖，不该拖垮整个引擎。
+
+### 构建
+
+- 安卓配置 App 的成品（24 KB）纳入版本库，Release 工作流才能带上它
 
 ## v1.0.0 — 2026-09-17
 
