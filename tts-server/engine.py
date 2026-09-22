@@ -22,6 +22,7 @@ import subprocess
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
 from pathlib import Path
 from typing import Any
 
@@ -146,6 +147,51 @@ def best_matching_arch(major: int, minor: int, arch_list: list[str]) -> str | No
     return best[1] if best else None
 
 
+def install_edge_tts_timeout(timeout: float) -> bool:
+    """给 ``edge_tts.Communicate.save`` 套一层超时。返回是否打了补丁。
+
+    为什么必须这么做：
+
+    ``tts-with-rvc`` 内部的调用链是
+
+        speech()  ->  await tts_communicate()
+                            ->  await communicate.save(path)     # edge-tts
+
+    而 **edge-tts 这个库本身完全没有任何超时设置**。微软的接口一旦接受了
+    WebSocket 连接却不回音频，这个 await 就永远挂着 —— 不抛异常、不返回、
+    也不释放 ``can_speak``，整条推理链就此死亡。
+
+    现场证据：2026-09-19 06:22 之后，每一个请求都卡满 180s 超时；
+    py-spy 抓到的栈停在 ``tts_with_rvc/inference.py:144`` 的 ``result()``，
+    工作线程在事件循环里 select 空转。
+
+    加上超时之后，这种情况会变成 TimeoutError，上层按「可重试错误」处理
+    （重试几次，仍失败就按 tts.source 自动切本地离线语音）。
+    """
+    try:
+        import edge_tts
+    except ImportError:
+        return False
+
+    original = getattr(edge_tts.Communicate, "save", None)
+    if original is None:
+        return False
+    if getattr(original, "_tts_server_timeout_patched", False):
+        return True
+
+    async def save_with_timeout(self, path, *args, **kwargs):  # type: ignore[no-untyped-def]
+        return await asyncio.wait_for(
+            original(self, path, *args, **kwargs),
+            timeout=timeout,
+        )
+
+    save_with_timeout._tts_server_timeout_patched = True  # type: ignore[attr-defined]
+    save_with_timeout._tts_server_original = original  # type: ignore[attr-defined]
+    edge_tts.Communicate.save = save_with_timeout  # type: ignore[method-assign]
+    logger.info("已给 edge-tts 加上 %.0fs 超时（否则卡住会拖死整个服务）", timeout)
+    return True
+
+
 class TTSError(Exception):
     """带错误码的 TTS 异常，便于 HTTP 层映射成明确的错误响应。"""
 
@@ -237,6 +283,11 @@ class TTSEngine:
         with self._init_lock:
             if self._tts is not None:
                 return
+
+            # 关键：tts-with-rvc 内部是 await edge_tts 的 save()，而 edge-tts
+            # 自己没有超时。不补这一刀，微软接口一旦"接了连接不回音频"，
+            # 整个服务就会被一个卡死的 await 拖垮（实测 2026-09-19 发生过）。
+            install_edge_tts_timeout(self.config.tts.float("edge_timeout", 60))
 
             if not self.config.rvc.bool("enabled", True):
                 # 调试模式：跳过 RVC，只做 TTS
@@ -757,6 +808,68 @@ class TTSEngine:
         return self._tts is not None
 
     # ------------------------------------------------------------------
+    # 卡死自愈：库内部线程卡住时无法从 Python 层中断，只能重启进程
+    # ------------------------------------------------------------------
+
+    @property
+    def hard_timeout(self) -> float:
+        """单次库调用的硬上限（秒）。超过就判定卡死，重启进程。
+
+        必须小于 queue.timeout，否则外层先超时、用户只会看到普通超时错误。
+        """
+        hard = float(self.config.queue.float("hard_timeout", 150))
+        hard = max(5.0, hard)
+        # 无论配置怎么写，硬超时都必须留在 queue.timeout 之内，
+        # 否则外层先超时，用户只能看到普通超时错误，自愈重启永远不会触发。
+        if self.timeout > 5:
+            hard = min(hard, self.timeout - 5)
+        return hard
+
+    def _abort_stuck_process(self, reason: str) -> None:
+        """判定进程已卡死，主动退出，交给 systemd 重启。
+
+        库卡在网络的 await 上时，Python 层面没有任何办法中断那个线程
+        （asyncio 超时取消了也没用，线程还占着锁）。继续跑下去的唯一结果是
+        **后续每一个请求都超时**。直接退出进程、让 systemd 几秒后拉起来，
+        是恢复最快、状态最干净的做法。
+        """
+        self._stats["last_error"] = reason
+        self._stats["stuck_restart"] = self._stats.get("stuck_restart", 0) + 1
+        logger.error(
+            "%s。主动退出进程以便 systemd 重启服务（Restart=always），"
+            "否则后续所有请求都会一直超时。",
+            reason,
+        )
+        try:
+            logging.shutdown()
+        except Exception:  # pragma: no cover
+            pass
+        # 用 os._exit 跳过各种清理钩子：卡住的线程会阻塞正常的解释器退出
+        os._exit(70)
+
+    def _call_library_bounded(self, **kwargs: Any) -> Any:
+        """在线程里调用 tts-with-rvc，并加硬超时。
+
+        注意不能用 ``with ThreadPoolExecutor(...)``：它的 ``__exit__`` 是
+        ``shutdown(wait=True)``，正好会再等一次那个卡死的线程，等于没加超时。
+        所以手动 ``shutdown(wait=False)``；真超时就直接重启进程。
+        """
+        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rvc-call")
+        try:
+            future = pool.submit(self._tts, **kwargs)
+            try:
+                return future.result(timeout=self.hard_timeout)
+            except FuturesTimeout:
+                self._abort_stuck_process(
+                    f"tts-with-rvc 调用超过 {self.hard_timeout:.0f}s 未返回"
+                    "（多半是 edge-tts 卡在网络等待上）"
+                )
+            except Exception:
+                raise
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+
+    # ------------------------------------------------------------------
     # 语音源（TTS 后端）选择
     # ------------------------------------------------------------------
 
@@ -818,8 +931,21 @@ class TTSEngine:
         if backend == "sapi":
             # 本地 TTS 不依赖网络，瞬时错误通常来自合成器本身，重试 1 次足够
             retries = min(retries, 1)
-        # 串行化：同一时刻只允许一个 RVC 推理（库本身也不支持并发）
-        with self._rvc_lock:
+        # 串行化：同一时刻只允许一个 RVC 推理（库本身也不支持并发）。
+        #
+        # 这里用「带超时的获取」而不是 `with`：库内部是
+        #   self.pool.submit(asyncio.run, speech(...)).result()
+        # 而 speech() 第一步就是 await edge_tts 的 save()，**edge-tts 自己没有超时**。
+        # 一旦微软那边接了连接却不回音频，这个 await 会永远挂着：
+        # 它不发异常、不释放锁，于是后面每个请求都在等锁 → 全部超时。
+        # 所以拿不到锁就说明上一次推理已经卡死，必须重启进程才能清掉那个线程。
+        lock_wait = self.hard_timeout
+        acquired = self._rvc_lock.acquire(timeout=lock_wait)
+        if not acquired:
+            self._abort_stuck_process(
+                f"RVC 推理锁已被占用超过 {lock_wait:.0f}s，上一次推理卡死未释放"
+            )
+        try:
             attempt = 0
             while True:
                 try:
@@ -828,7 +954,7 @@ class TTSEngine:
                     elif backend == "espeak":
                         output = self._run_espeak_with_rvc(text, work_name)
                     else:
-                        output = self._tts(
+                        output = self._call_library_bounded(
                             text=text,
                             pitch=self.config.tts.int("pitch", 0),
                             tts_rate=self.config.tts.int("rate", 0),
@@ -867,6 +993,8 @@ class TTSEngine:
                         f"tts-with-rvc 执行失败: {exc}",
                         status_code=500,
                     ) from exc
+        finally:
+            self._rvc_lock.release()
         return Path(output)
 
     # Edge TTS 是微软的在线服务，偶发会返回空音频或直接断连；这类错误重试通常就好了

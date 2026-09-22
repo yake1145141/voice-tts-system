@@ -100,7 +100,7 @@ def build_client_package(root: Path, out: Path) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="生成开源发布包")
-    parser.add_argument("--version", default="1.0.0", help="版本号，默认 1.0.0")
+    parser.add_argument("--version", default="1.0.1", help="版本号，默认 1.0.1")
     parser.add_argument("--out-dir", default=str(ROOT / "release"), help="输出目录")
     parser.add_argument("--zip", action="store_true", help="顺便打成 zip")
     args = parser.parse_args()

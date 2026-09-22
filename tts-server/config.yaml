@@ -49,6 +49,9 @@ tts:
   rate: 0                    # 语速（百分比，可负）
   volume: 0                  # 音量（百分比，可负）
   retries: 3                 # 在线语音偶发失败（空音频/断连/超时）时的重试次数
+  edge_timeout: 60           # 单次在线语音的超时（秒）。edge-tts 库自己没有超时，
+                             # 不给它加这一层的话，微软"接了连接却不回音频"时
+                             # 请求会永久挂住并拖死整个服务（v1.0.1 修复的问题）
   sapi_voice: ""             # 本地语音名称，留空 = 自动挑一个中文语音（如 Microsoft Huihui Desktop）
   sapi_rate: 0               # 本地语音语速：-10 ~ 10
   sapi_timeout: 60           # 本地语音合成超时（秒）
@@ -115,6 +118,8 @@ queue:
   max_concurrent: 2          # 同时进行的 TTS 任务数（RVC 推理由底层库串行化）
   max_queue_size: 32         # 排队上限，超过则直接返回 503，避免无限堆积
   timeout: 120               # 单个任务超时时间（秒）
+  hard_timeout: 100          # 单次库调用的硬上限（秒），必须小于 timeout。
+                             # 超过即判定进程卡死，主动退出让 systemd 拉起（Restart=always）
 
 audio:
   output_format: "wav"       # wav（AstrBot 语音消息推荐）或 mp3（体积更小，需要 ffmpeg）

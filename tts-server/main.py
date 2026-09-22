@@ -189,7 +189,7 @@ def build_app(config: AppConfig) -> FastAPI:
     app = FastAPI(
         title="TTS-with-RVC Service",
         description="Edge TTS (zh-CN-YunxiNeural) + RVC 语音合成服务，供 AstrBot 插件调用。",
-        version="1.0.0",
+        version="1.0.1",
         lifespan=lifespan,
     )
 

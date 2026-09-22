@@ -138,6 +138,7 @@ tts-server-win64-cuda\
 ├── 诊断信息.bat         ← 出问题时跑它，把 diagnostics.txt 发给别人求助
 ├── 编辑配置.bat         ← 打开 config.yaml
 ├── 查看日志.bat / 测试合成.bat / 停止服务.bat / 后台启动.bat
+├── 守护启动.bat         ← 守护运行（进程退出自动重启，长期挂机推荐）
 ├── 应用补丁.bat         ← 覆盖安装补丁
 ├── 升级到老显卡版torch.bat  ← 老卡（P4/P40/P106 等 sm_61）专用
 ├── models\              ← 放你的 .pth / .index

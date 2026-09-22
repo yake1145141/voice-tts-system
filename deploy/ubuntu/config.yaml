@@ -40,6 +40,7 @@ tts:
   rate: 0                  # 语速百分比
   volume: 0                # 音量百分比
   retries: 3               # 在线语音偶发失败时的重试次数
+  edge_timeout: 60         # 单次在线语音的超时（秒）；edge-tts 自身没有超时，必须由这里兜住
 
 storage:
   output_dir: "./output"
@@ -52,6 +53,7 @@ queue:
   max_concurrent: 1        # RVC 推理本身串行，保持 1 最稳
   max_queue_size: 16
   timeout: 180
+  hard_timeout: 100        # 单次库调用的硬上限（秒）：超过判定卡死，主动退出由 systemd 拉起
 
 audio:
   output_format: "wav"

@@ -271,6 +271,7 @@ tts:
   speaker: "zh-CN-YunxiNeural"
   pitch: 5
   retries: 3               # 在线语音偶发失败的重试次数
+  edge_timeout: 60         # 单次在线语音的超时（秒）；edge-tts 自身没有超时，必须由这里兜住
   sapi_voice: ""           # 本地语音名，留空 = 自动选中文语音
   sapi_rate: 0             # 本地语音语速 -10 ~ 10
 
@@ -285,6 +286,7 @@ queue:
   max_concurrent: 1        # RVC 推理本身串行，保持 1 最稳
   max_queue_size: 16
   timeout: 180
+  hard_timeout: 100        # 单次库调用的硬上限（秒）：超过判定卡死，退出进程由「守护启动.bat」拉起
 
 audio:
   output_format: "wav"
@@ -320,6 +322,31 @@ if not exist "%~dp0logs" mkdir "%~dp0logs"
 start "tts-server" /min cmd /c ""%~dp0python\python.exe" -s "%~dp0app\main.py" --config "%~dp0config.yaml" >> "%~dp0logs\server.log" 2>&1"
 echo Started in background (minimized window). Log file: logs\server.log
 ping -n 4 127.0.0.1 >nul
+"@
+
+$batWatchdog = @"
+if not exist "%~dp0logs" mkdir "%~dp0logs"
+echo ============================================
+echo  Voice service (auto-restart). Close this window to stop.
+echo  Log file: logs\server.log
+echo ============================================
+echo.
+
+:loop
+echo [%date% %time%] --- starting server --- >> "%~dp0logs\server.log"
+"%~dp0python\python.exe" -s "%~dp0app\main.py" --config "%~dp0config.yaml" >> "%~dp0logs\server.log" 2>&1
+set "CODE=%ERRORLEVEL%"
+echo [%date% %time%] --- server exited (code %CODE%) --- >> "%~dp0logs\server.log"
+if "%CODE%"=="0" goto done
+echo.
+echo Server exited with code %CODE%. Restarting in 5s ... (close this window to stop)
+timeout /t 5 /nobreak >nul
+goto loop
+
+:done
+echo.
+echo Server stopped normally.
+pause >nul
 "@
 
 $batStop = @"
@@ -393,6 +420,7 @@ start "" notepad "%OUT%"
 $files = @{
     "启动语音服务.bat" = $batStart
     "后台启动.bat" = $batBackground
+    "守护启动.bat" = $batWatchdog
     "停止服务.bat" = $batStop
     "首次运行检查.bat" = $batCheck
     "诊断信息.bat" = $batDiag
@@ -401,10 +429,11 @@ $files = @{
     "查看日志.bat" = $batLog
     "打开输出目录.bat" = $batOpen
 }
-foreach ($name in $files.Keys) {
+# 注意：循环变量别叫 $name —— PowerShell 变量名不区分大小写，会覆盖掉参数 $Name
+foreach ($batName in $files.Keys) {
     # 注意：header 与正文之间必须显式加换行，否则第一条命令会被拼到 set 行后面
-    $content = ($header + "`n" + $files[$name]) -replace "`r`n", "`n" -replace "`n", "`r`n"
-    [IO.File]::WriteAllText((Join-Path $bundle $name), $content, (New-Object Text.UTF8Encoding($false)))
+    $content = ($header + "`n" + $files[$batName]) -replace "`r`n", "`n" -replace "`n", "`r`n"
+    [IO.File]::WriteAllText((Join-Path $bundle $batName), $content, (New-Object Text.UTF8Encoding($false)))
 }
 
 $readme = @"
@@ -420,6 +449,10 @@ $readme = @"
 
 想让它长期在后台跑：双击 **后台启动.bat**（最小化运行，日志写入 logs\server.log），
 停止用 **停止服务.bat**。
+
+想让它长期跑、**卡住还能自己爬起来**：双击 **守护启动.bat**。
+它会一直守着服务进程，进程退出（含推理卡死时的自我保护退出）就 5 秒后自动重启，
+日志同样写进 logs\server.log；关掉那个窗口即彻底停止。
 
 ## 接到 AstrBot
 
@@ -442,6 +475,7 @@ $readme = @"
 | --- | --- |
 | 启动语音服务.bat | 前台启动，能看到日志（关窗口即停止） |
 | 后台启动.bat / 停止服务.bat | 后台常驻运行 / 停止 |
+| 守护启动.bat | 前台守护运行：进程退出自动重启（推荐长期挂机） |
 | 测试合成.bat | 输入文本 → 合成 → 自动播放 |
 | app\voice_tts.py | 单文件调用库（复制到别的 Python 项目里用；用法见文件头注释） |
 | 首次运行检查.bat | 检查配置与 CUDA 是否可用 |
@@ -466,6 +500,7 @@ $readme = @"
 | 想换音色 | 新 .pth（和 .index）放进 models\，改 config.yaml 的 rvc.model / rvc.index |
 | 端口被占用 | 改 config.yaml 的 server.port，同时改 AstrBot 插件里的 url |
 | 语音多长会转文字 | 由插件侧 ``voice.max_text_length``（默认 300 字）决定 |
+| 控制台里全是 504 / 一直"生成失败" | 已修复：在线语音加了 `tts.edge_timeout`（60s）超时，库调用卡死超 `queue.hard_timeout`（100s）会主动退出进程；请用 **守护启动.bat** 启动，才会自动拉起 |
 
 构建时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 "@

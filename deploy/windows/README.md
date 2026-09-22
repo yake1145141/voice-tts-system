@@ -38,6 +38,7 @@ powershell -ExecutionPolicy Bypass -File deploy\windows\build_windows_bundle.ps1
 ```
 双击 启动语音服务.bat     → 前台运行，关窗口即停止
 双击 后台启动.bat         → 后台常驻（日志 logs\server.log）
+双击 守护启动.bat         → 前台守护：进程退出自动重启（长期挂机推荐）
 双击 停止服务.bat         → 停止后台服务
 双击 测试合成.bat [文本]  → 合成并自动播放
 双击 首次运行检查.bat     → 校验配置 + 显示 CUDA 是否可用

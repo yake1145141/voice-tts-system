@@ -39,6 +39,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "rate": 0,
         "volume": 0,
         "retries": 3,
+        "edge_timeout": 60,      # 单次 Edge TTS 的超时（edge-tts 自己不带任何超时）
     },
     "webui": {
         "enabled": True,
@@ -80,6 +81,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "max_concurrent": 2,
         "max_queue_size": 32,
         "timeout": 120,
+        "hard_timeout": 100,     # 单次库调用的硬上限；超过判定卡死并重启服务
     },
     "audio": {
         "output_format": "wav",

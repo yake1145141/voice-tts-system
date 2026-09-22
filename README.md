@@ -149,6 +149,7 @@ voice-tts-system/                       # 本仓库根目录
 ├── deploy/
 │   ├── linux/install.sh                #    服务端一键安装（Python3.12 + cu121 + systemd）
 │   ├── linux/uninstall.sh              #    卸载
+│   ├── linux/install-systemd.sh        #    手工装过之后补装 systemd 服务（修 Unit not found）
 │   ├── docker/                         #    Dockerfile + docker-compose.yml
 │   ├── build_linux_bundle.sh           #    构建 Linux amd64 免安装便携包（推荐）
 │   ├── build_linux_executable.sh       #    用 PyInstaller 构建可执行文件
@@ -365,6 +366,7 @@ powershell -ExecutionPolicy Bypass -File deploy\windows\build_windows_bundle.ps1
 
 产物 `dist\windows\tts-server-win64-cuda\`（本机实测约 5.5GB，含 RTX 5070 可用的 torch 2.11+cu128），
 双击其中的 `启动语音服务.bat` 即可；`测试合成.bat` 可试听，`后台启动.bat` / `停止服务.bat` 用于常驻，
+想长期挂机、还要「卡死自动重启」就用 `守护启动.bat`，
 `编辑配置.bat` 改端口/Key/模型。包内已附 `astrbot_plugin_voice_reply`，拷进 AstrBot 插件目录即可对接。
 详见 [deploy/windows/README.md](deploy/windows/README.md)。
 
@@ -446,6 +448,27 @@ sudo journalctl -u tts-server -f
 
 `deploy/tts-server.service` 中可按需修改 `User` / `WorkingDirectory` / `ExecStart`，
 并可用 `Environment=` 覆盖任意配置项（例如 `TTS_SERVER_API_KEY`、`RVC_MODEL`、`CUDA_VISIBLE_DEVICES`）。
+
+#### 已经跑起来了，却提示 `Unit tts-server.service could not be found.`？
+
+说明这台机器上**从来没有装过 systemd 单元文件**。只有 `deploy/linux/install.sh` 会注册服务，
+下面这几种装法都不会：免安装便携包、`nohup python3 main.py &`、`deploy/start_tts_server.sh`、手动解压的 tar 包。
+
+补装只要一条命令（会自动找安装目录、Python、端口，并停掉手工起的旧进程）：
+
+```bash
+sudo bash deploy/linux/install-systemd.sh                          # 自动探测
+sudo bash deploy/linux/install-systemd.sh /opt/tts-server 50051    # 或手动指定：目录 端口
+```
+
+脚本会依次：探测安装目录（先看运行中进程的 `cmdline`，再找 `/opt/tts-server` 等常见位置）→
+找 `venv` / 独立运行时 / 系统 Python → 从 `config.yaml` 读端口 → 生成
+`/etc/systemd/system/tts-server.service`（带 `Restart=always`）→ `daemon-reload` + `enable --now` → 探活 `/api/health`。
+
+跑完 `systemctl status tts-server`、`journalctl -u tts-server -f` 就都正常了。
+
+> 为什么必须要 `Restart=always`：`edge-tts` 卡在网络等待上时线程无法从 Python 层面中断，
+> 服务端会选择主动退出、让 systemd 秒级拉起（详见 [CHANGELOG](CHANGELOG.md) v1.0.1）。
 
 ---
 

@@ -599,6 +599,140 @@ def run_local_tts_source_tests(failures: list[str]) -> None:
         check(edge_calls == ["edgetts"], "source=edgetts 不会尝试本地 TTS", failures)
 
 
+def run_hang_protection_tests(failures: list[str]) -> None:
+    """卡死保护：edge-tts 超时补丁 + 硬超时 + 拿不到锁就重启。
+
+    这段是 2026-09-19 那次线上事故的回归测试。当时的表现是：
+    服务正常跑了几天后，某个请求在 edge-tts 的网络等待上永久挂住
+    （edge-tts 自己没有任何超时），它不抛异常也不释放 _rvc_lock，
+    于是之后**每一个请求**都排队等到 180s 超时，服务再也没恢复过。
+    """
+    print("卡死保护（edge-tts 超时 / 硬超时 / 锁卡死自愈）")
+    import sys
+    import types as _types
+
+    from engine import TTSEngine, install_edge_tts_timeout
+
+    # ---- 1) edge-tts 超时补丁 ----
+    fake = _types.ModuleType("edge_tts")
+
+    class FakeCommunicate:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        async def save(self, path):
+            return "original"
+
+    fake.Communicate = FakeCommunicate
+    saved = sys.modules.get("edge_tts")
+    sys.modules["edge_tts"] = fake
+    try:
+        patched = install_edge_tts_timeout(0.1)
+        check(patched is True, "install_edge_tts_timeout 返回 True（已打补丁）", failures)
+        check(
+            getattr(FakeCommunicate.save, "_tts_server_timeout_patched", False) is True,
+            "Communicate.save 被替换成了带超时的版本",
+            failures,
+        )
+        # 二次调用不应重复打补丁（幂等）
+        check(install_edge_tts_timeout(0.1) is True, "重复调用是幂等的", failures)
+
+        # 一个永远挂住的 save()，必须被超时打断
+        import asyncio
+
+        class HangCommunicate:
+            async def save(self, path):
+                await asyncio.sleep(3600)
+
+        fake.Communicate = HangCommunicate
+        install_edge_tts_timeout(0.15)
+        try:
+            asyncio.run(fake.Communicate().save("x"))
+            check(False, "挂住的 save() 应该被超时打断", failures)
+        except asyncio.TimeoutError:
+            check(True, "挂住的 save() 被超时打断（不再永久阻塞）", failures)
+        except Exception as exc:  # noqa: BLE001
+            check(False, f"期望 TimeoutError，实际 {type(exc).__name__}: {exc}", failures)
+    finally:
+        if saved is not None:
+            sys.modules["edge_tts"] = saved
+        else:
+            sys.modules.pop("edge_tts", None)
+
+    # ---- 2) hard_timeout 必须小于 queue.timeout ----
+    with tempfile.TemporaryDirectory() as tmp_name:
+        tmp = Path(tmp_name)
+        (tmp / "models").mkdir(parents=True, exist_ok=True)
+        (tmp / "models" / "MyVoice.pth").write_bytes(b"fake")
+        config_path = tmp / "config.yaml"
+        config_path.write_text(
+            "\n".join(
+                [
+                    "security:", '  api_key: ""',
+                    "tts:", '  source: "edgetts"', '  speaker: "zh-CN-YunxiNeural"',
+                    "rvc:", "  enabled: false", "  preload: false",
+                    "storage:", f"  output_dir: '{(tmp / 'output').as_posix()}'",
+                    "queue:", "  timeout: 180", "  hard_timeout: 100",
+                ],
+            ),
+            encoding="utf-8",
+        )
+        config = AppConfig.load(config_path)
+        engine = TTSEngine(config, AudioStorage(config.output_dir, expire_minutes=10))
+        check(
+            engine.hard_timeout < engine.timeout,
+            f"hard_timeout({engine.hard_timeout:.0f}s) 小于 queue.timeout({engine.timeout:.0f}s)",
+            failures,
+        )
+        check(engine.hard_timeout > 0, "hard_timeout 是正数", failures)
+
+        # ---- 3) 库调用挂住时，必须触发「重启进程」而不是静默等待 ----
+        aborted: list[str] = []
+
+        def fake_abort(reason: str) -> None:
+            aborted.append(reason)
+            raise RuntimeError("__abort__")
+
+        engine._tts = lambda **kwargs: time.sleep(30)  # 模拟永久卡住的库调用
+        engine._abort_stuck_process = fake_abort  # type: ignore[method-assign]
+        original_prop = type(engine).hard_timeout
+        type(engine).hard_timeout = property(lambda self: 0.5)
+        try:
+            engine._call_library_bounded(text="x", output_filename="y.wav")
+            check(False, "卡住的库调用应该触发进程重启", failures)
+        except RuntimeError as exc:
+            check(str(exc) == "__abort__", "卡住的库调用触发了 _abort_stuck_process", failures)
+        finally:
+            type(engine).hard_timeout = original_prop
+        check(bool(aborted), f"重启原因被记录（{aborted[:1]}）", failures)
+
+    # ---- 4) 拿不到锁同样判定卡死 ----
+    with tempfile.TemporaryDirectory() as tmp_name:
+        tmp = Path(tmp_name)
+        engine2 = TTSEngine(config, AudioStorage(config.output_dir, expire_minutes=10))
+        engine2._tts = lambda **kwargs: None
+        aborted2: list[str] = []
+        engine2._abort_stuck_process = lambda reason: aborted2.append(reason)  # type: ignore[method-assign]
+        engine2._rvc_lock.acquire()          # 模拟"上一次推理还占着锁"
+        original_prop2 = type(engine2).hard_timeout
+        type(engine2).hard_timeout = property(lambda self: 0.3)
+        try:
+            engine2._run_tts_with_rvc("x", "y.wav")
+        except Exception:  # noqa: BLE001 - 没重启成功也无所谓，重点是走到了判断
+            pass
+        finally:
+            type(engine2).hard_timeout = original_prop2
+            try:
+                engine2._rvc_lock.release()
+            except RuntimeError:
+                pass
+        check(
+            bool(aborted2) and "锁" in aborted2[0],
+            f"锁被卡死占用时触发了重启（{aborted2[:1]}）",
+            failures,
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--real", action="store_true", help="额外执行真实 Edge TTS 合成")
@@ -611,6 +745,7 @@ def main() -> int:
     run_library_signature_test(failures)
     run_rvc_serialization_test(failures)
     run_local_tts_source_tests(failures)
+    run_hang_protection_tests(failures)
     if args.real:
         run_real_test(failures)
 

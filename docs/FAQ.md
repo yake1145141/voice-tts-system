@@ -110,7 +110,35 @@ A：Linux 安装脚本已自动注册 systemd 服务：
 systemctl enable --now tts-server
 ```
 
-Windows 整合包用 `后台启动.bat`，或把它加进「任务计划程序」。
+Windows 整合包用 `守护启动.bat`（进程退出会自动拉起，等价于 systemd 的 `Restart=always`），
+或把 `后台启动.bat` 加进「任务计划程序」。
+
+**Q：`systemctl status tts-server` 提示 `Unit tts-server.service could not be found.`**
+A：这台机器上没有 systemd 单元文件 —— **免安装便携包**、`nohup python3 main.py &`、
+`deploy/start_tts_server.sh`、手动解压的包都不会注册服务，只有 `deploy/linux/install.sh` 会。
+补装一条命令：
+
+```bash
+sudo bash deploy/linux/install-systemd.sh
+```
+
+脚本会自动探测安装目录 / Python / 端口并重建服务，
+用法见 README「三、Linux 启动方式与 systemd」。
+
+**Q：控制台里全是 504，服务端「一直生成失败」（v1.0.0）**
+A：**v1.0.1 已修复**。根因是 `edge-tts` 库自身没有任何超时：
+微软接口一旦「接了连接却不回音频」，`await communicate.save()` 会永久挂住，
+既不抛异常也不释放推理锁，于是后续每一个请求都在等锁，全部排到 180s 超时
+（实测从某次抖动开始，之后连续十几次请求 100% 超时）。
+
+修复分三层：
+
+1. 给 `edge-tts` 套上 `tts.edge_timeout`（默认 60s）超时，卡住即抛 `TimeoutError`，走重试 / 离线语音兜底
+2. 新增 `queue.hard_timeout`（默认 100s）硬上限，库调用真卡死时**主动退出进程**
+3. 推理锁被占用超过硬上限同样判定卡死并重启
+
+第 2、3 条靠 systemd `Restart=always` 在几秒内把服务拉回来，所以**请务必用 systemd 托管**
+（`install.sh` 或 `install-systemd.sh` 装的都带）；手工 `nohup` 起的进程卡死后不会自愈。
 
 ---
 
