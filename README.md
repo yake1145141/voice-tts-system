@@ -16,7 +16,7 @@ GitHub 直连慢或者连不上？在地址前面加上 `https://gh-proxy.cn/` �
 git clone https://github.com/yake1145141/voice-tts-system.git
 
 # 国内加速（推荐国内用户用这条）
-git clone https://gh-proxy.cn/https://github.com/yake1145141/voice-tts-system.git
+git clone https://eo.gh-proxy.cn/https://github.com/yake1145141/voice-tts-system.git
 ```
 
 Release 里的发布包、安装脚本、以及文档里的其它 GitHub 链接，用同样的方法在地址前面加前缀即可。
